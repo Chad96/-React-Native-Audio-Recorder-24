@@ -1,13 +1,15 @@
 import React from 'react';
 import { Text, View, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { Audio } from 'expo-av';
-import styles from '../styles'; // Import styles from the styles.js file
-import Icon from 'react-native-vector-icons/MaterialIcons'; // Importing MaterialIcons
+import styles from '../styles';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 
 export default function RecorderScreen() {
   const [recording, setRecording] = React.useState();
   const [recordings, setRecordings] = React.useState([]);
-  const [currentDuration, setCurrentDuration] = React.useState(0); // To store the current duration of the recording
+  const [currentDuration, setCurrentDuration] = React.useState(0); // Timer during recording
+  const [currentPlaybackPosition, setCurrentPlaybackPosition] = React.useState(0); // Timer during playback
+  const [playingSound, setPlayingSound] = React.useState(null); // Currently playing sound reference
 
   // Start recording
   async function startRecording() {
@@ -23,7 +25,6 @@ export default function RecorderScreen() {
         );
         setRecording(recording);
 
-        // Update current duration every second
         recording.setOnRecordingStatusUpdate((status) => {
           if (status.isRecording) {
             setCurrentDuration(status.durationMillis);
@@ -40,29 +41,22 @@ export default function RecorderScreen() {
     setRecording(undefined);
 
     await recording.stopAndUnloadAsync();
-    let allRecordings = [...recordings];
     const { sound, status } = await recording.createNewLoadedSoundAsync();
-    allRecordings.push({
-      sound: sound,
-      duration: getDurationFormatted(status.durationMillis),
-      file: recording.getURI(),
-    });
-
-    setRecordings(allRecordings);
-    setCurrentDuration(0); // Reset the duration after stopping
+    setRecordings((prev) => [
+      ...prev,
+      {
+        sound: sound,
+        duration: getDurationFormatted(status.durationMillis),
+        file: recording.getURI(),
+      },
+    ]);
+    setCurrentDuration(0); // Reset the duration
   }
 
   // Pause recording
   async function pauseRecording() {
     if (recording) {
       await recording.pauseAsync();
-    }
-  }
-
-  // Resume recording
-  async function resumeRecording() {
-    if (recording) {
-      await recording.startAsync();
     }
   }
 
@@ -73,79 +67,34 @@ export default function RecorderScreen() {
     setCurrentDuration(0); // Reset the duration if discarded
   }
 
+  // Play recording
+  async function playRecording(sound) {
+    if (playingSound) {
+      await playingSound.stopAsync(); // Stop current sound
+      setPlayingSound(null);
+      setCurrentPlaybackPosition(0);
+    }
+
+    setPlayingSound(sound);
+
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.isPlaying) {
+        setCurrentPlaybackPosition(status.positionMillis);
+      }
+      if (status.didJustFinish) {
+        setPlayingSound(null); // Reset after playback ends
+        setCurrentPlaybackPosition(0);
+      }
+    });
+
+    await sound.replayAsync();
+  }
+
   // Format duration
   function getDurationFormatted(milliseconds) {
     const minutes = Math.floor(milliseconds / 1000 / 60);
     const seconds = Math.round((milliseconds / 1000) % 60);
     return `${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`;
-  }
-
-  // Get recording list with options
-  function getRecordingLines() {
-    return recordings.map((recordingLine, index) => {
-      return (
-        <View key={index} style={styles.recordingRow}>
-          <Text style={styles.recordingText}>
-            Recording #{index + 1} | {recordingLine.duration}
-          </Text>
-
-          <TouchableOpacity
-            style={styles.playButton}
-            onPress={() => recordingLine.sound.replayAsync()}
-          >
-            <Text style={styles.buttonText}>Play</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => editRecording(index)}
-          >
-            <Text style={styles.buttonText}>Edit</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => deleteRecording(index)}
-          >
-            <Text style={styles.buttonText}>Delete</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    });
-  }
-
-  // Delete a recording
-  function deleteRecording(index) {
-    Alert.alert(
-      'Delete Recording',
-      'Are you sure you want to delete this recording?',
-      [
-        { text: 'Cancel' },
-        {
-          text: 'Delete',
-          onPress: () => {
-            let updatedRecordings = [...recordings];
-            updatedRecordings.splice(index, 1);
-            setRecordings(updatedRecordings);
-          },
-        },
-      ]
-    );
-  }
-
-  // Edit a recording (replace)
-  function editRecording(index) {
-    const newRecordingUri = 'new_recording_file_path'; // Placeholder for edited file
-    const newDuration = '00:00'; // Placeholder for new duration
-
-    let updatedRecordings = [...recordings];
-    updatedRecordings[index] = {
-      ...updatedRecordings[index],
-      file: newRecordingUri, // Replace the file path
-      duration: newDuration, // Replace the duration
-    };
-
-    setRecordings(updatedRecordings);
   }
 
   // Clear all recordings
@@ -158,10 +107,17 @@ export default function RecorderScreen() {
       {/* Header */}
       <Text style={styles.header}>Voice Recorder</Text>
 
-      {/* Recording Duration */}
+      {/* Recording Timer */}
       {recording && (
         <Text style={styles.durationText}>
-          {getDurationFormatted(currentDuration)}
+          Recording: {getDurationFormatted(currentDuration)}
+        </Text>
+      )}
+
+      {/* Playback Timer */}
+      {playingSound && (
+        <Text style={styles.durationText}>
+          Playing: {getDurationFormatted(currentPlaybackPosition)}
         </Text>
       )}
 
@@ -169,30 +125,18 @@ export default function RecorderScreen() {
       <View style={styles.controlsContainer}>
         {recording ? (
           <>
-            <TouchableOpacity
-              style={styles.controlButton}
-              onPress={pauseRecording}
-            >
+            <TouchableOpacity style={styles.controlButton} onPress={pauseRecording}>
               <Icon name="pause" size={30} color="#FFF" />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.controlButton}
-              onPress={stopRecording}
-            >
+            <TouchableOpacity style={styles.controlButton} onPress={stopRecording}>
               <Icon name="stop" size={30} color="#FFF" />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.controlButton}
-              onPress={discardRecording}
-            >
+            <TouchableOpacity style={styles.controlButton} onPress={discardRecording}>
               <Icon name="delete" size={30} color="#FFF" />
             </TouchableOpacity>
           </>
         ) : (
-          <TouchableOpacity
-            style={styles.recordButton}
-            onPress={startRecording}
-          >
+          <TouchableOpacity style={styles.recordButton} onPress={startRecording}>
             <Text style={styles.buttonText}>Start Recording</Text>
           </TouchableOpacity>
         )}
@@ -208,21 +152,9 @@ export default function RecorderScreen() {
             </Text>
             <TouchableOpacity
               style={styles.playButton}
-              onPress={() => item.sound.replayAsync()}
+              onPress={() => playRecording(item.sound)}
             >
               <Text style={styles.buttonText}>Play</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => editRecording(index)}
-            >
-              <Text style={styles.buttonText}>Edit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => deleteRecording(index)}
-            >
-              <Text style={styles.buttonText}>Delete</Text>
             </TouchableOpacity>
           </View>
         )}
