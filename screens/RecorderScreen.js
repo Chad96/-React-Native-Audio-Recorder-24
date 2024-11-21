@@ -1,17 +1,19 @@
 import React from 'react';
 import { Text, View, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { Audio } from 'expo-av';
-import styles from '../styles';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import styles from '../styles'; // Import your external styles file
+import Icon from 'react-native-vector-icons/MaterialIcons'; // MaterialIcons for a consistent feel
+import * as Animatable from 'react-native-animatable'; // For button animation
+import Slider from '@react-native-community/slider'; // Import Slider
 
 export default function RecorderScreen() {
   const [recording, setRecording] = React.useState();
   const [recordings, setRecordings] = React.useState([]);
-  const [currentDuration, setCurrentDuration] = React.useState(0); // Timer during recording
-  const [currentPlaybackPosition, setCurrentPlaybackPosition] = React.useState(0); // Timer during playback
-  const [playingSound, setPlayingSound] = React.useState(null); // Currently playing sound reference
+  const [currentDuration, setCurrentDuration] = React.useState(0);
+  const [playingSound, setPlayingSound] = React.useState(null);
+  const [currentPlaybackPosition, setCurrentPlaybackPosition] = React.useState(0);
+  const [soundDuration, setSoundDuration] = React.useState(0);
 
-  // Start recording
   async function startRecording() {
     try {
       const perm = await Audio.requestPermissionsAsync();
@@ -36,12 +38,13 @@ export default function RecorderScreen() {
     }
   }
 
-  // Stop recording
   async function stopRecording() {
     setRecording(undefined);
 
     await recording.stopAndUnloadAsync();
     const { sound, status } = await recording.createNewLoadedSoundAsync();
+    setSoundDuration(status.durationMillis); // Save the total duration of the sound
+
     setRecordings((prev) => [
       ...prev,
       {
@@ -50,27 +53,24 @@ export default function RecorderScreen() {
         file: recording.getURI(),
       },
     ]);
-    setCurrentDuration(0); // Reset the duration
+    setCurrentDuration(0);
   }
 
-  // Pause recording
   async function pauseRecording() {
     if (recording) {
       await recording.pauseAsync();
     }
   }
 
-  // Discard recording
   async function discardRecording() {
     setRecording(undefined);
     await recording.stopAndUnloadAsync();
-    setCurrentDuration(0); // Reset the duration if discarded
+    setCurrentDuration(0);
   }
 
-  // Play recording
   async function playRecording(sound) {
     if (playingSound) {
-      await playingSound.stopAsync(); // Stop current sound
+      await playingSound.stopAsync();
       setPlayingSound(null);
       setCurrentPlaybackPosition(0);
     }
@@ -82,7 +82,7 @@ export default function RecorderScreen() {
         setCurrentPlaybackPosition(status.positionMillis);
       }
       if (status.didJustFinish) {
-        setPlayingSound(null); // Reset after playback ends
+        setPlayingSound(null);
         setCurrentPlaybackPosition(0);
       }
     });
@@ -90,14 +90,21 @@ export default function RecorderScreen() {
     await sound.replayAsync();
   }
 
-  // Format duration
+  // Function to handle slider change
+  const onSliderValueChange = async (value) => {
+    if (playingSound) {
+      // Seek the playback to the new position
+      await playingSound.setPositionAsync(value);
+      setCurrentPlaybackPosition(value);
+    }
+  };
+
   function getDurationFormatted(milliseconds) {
     const minutes = Math.floor(milliseconds / 1000 / 60);
     const seconds = Math.round((milliseconds / 1000) % 60);
     return `${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`;
   }
 
-  // Clear all recordings
   function clearRecordings() {
     setRecordings([]);
   }
@@ -105,20 +112,36 @@ export default function RecorderScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <Text style={styles.header}>Voice Recorder</Text>
+      <Text style={styles.header}>🎙️ Voice Recorder</Text>
 
       {/* Recording Timer */}
       {recording && (
-        <Text style={styles.durationText}>
-          Recording: {getDurationFormatted(currentDuration)}
-        </Text>
+        <View style={styles.timerContainer}>
+          <Text style={styles.durationText}>
+            Recording: {getDurationFormatted(currentDuration)}
+          </Text>
+        </View>
       )}
 
       {/* Playback Timer */}
       {playingSound && (
-        <Text style={styles.durationText}>
-          Playing: {getDurationFormatted(currentPlaybackPosition)}
-        </Text>
+        <View>
+          <Text style={styles.durationText}>
+            Playing: {getDurationFormatted(currentPlaybackPosition)} / {getDurationFormatted(soundDuration)}
+          </Text>
+
+          {/* Playback Slider */}
+          <Slider
+            style={styles.slider}
+            minimumValue={0}
+            maximumValue={soundDuration}
+            value={currentPlaybackPosition}
+            onValueChange={onSliderValueChange}
+            thumbTintColor="#00BFA5"
+            minimumTrackTintColor="#00BFA5"
+            maximumTrackTintColor="#D3D3D3"
+          />
+        </View>
       )}
 
       {/* Recording Controls */}
@@ -126,19 +149,25 @@ export default function RecorderScreen() {
         {recording ? (
           <>
             <TouchableOpacity style={styles.controlButton} onPress={pauseRecording}>
-              <Icon name="pause" size={30} color="#FFF" />
+              <Icon name="pause-circle-filled" size={50} color="#00BFA5" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.controlButton} onPress={stopRecording}>
-              <Icon name="stop" size={30} color="#FFF" />
+              <Icon name="stop-circle" size={50} color="#00BFA5" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.controlButton} onPress={discardRecording}>
-              <Icon name="delete" size={30} color="#FFF" />
+              <Icon name="delete-forever" size={50} color="#D32F2F" />
             </TouchableOpacity>
           </>
         ) : (
-          <TouchableOpacity style={styles.recordButton} onPress={startRecording}>
-            <Text style={styles.buttonText}>Start Recording</Text>
-          </TouchableOpacity>
+          <Animatable.View
+            animation="pulse"
+            iterationCount="infinite"
+            style={styles.recordButtonContainer}
+          >
+            <TouchableOpacity style={styles.recordButton} onPress={startRecording}>
+              <Icon name="fiber-manual-record" size={60} color="#fff" />
+            </TouchableOpacity>
+          </Animatable.View>
         )}
       </View>
 
@@ -146,7 +175,7 @@ export default function RecorderScreen() {
       <FlatList
         data={recordings}
         renderItem={({ item, index }) => (
-          <View style={styles.recordingRow}>
+          <View style={styles.recordingCard}>
             <Text style={styles.recordingText}>
               Recording #{index + 1} | {item.duration}
             </Text>
@@ -154,7 +183,7 @@ export default function RecorderScreen() {
               style={styles.playButton}
               onPress={() => playRecording(item.sound)}
             >
-              <Text style={styles.buttonText}>Play</Text>
+              <Icon name="play-circle-filled" size={40} color="#00BFA5" />
             </TouchableOpacity>
           </View>
         )}
@@ -170,7 +199,7 @@ export default function RecorderScreen() {
       {/* Clear Button */}
       {recordings.length > 0 && (
         <TouchableOpacity style={styles.clearButton} onPress={clearRecordings}>
-          <Text style={styles.buttonText}>Clear Recordings</Text>
+          <Text style={styles.clearButtonText}>Clear All Recordings</Text>
         </TouchableOpacity>
       )}
     </View>
