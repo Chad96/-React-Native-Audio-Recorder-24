@@ -13,9 +13,8 @@ export default function RecorderScreen() {
   const [playingSound, setPlayingSound] = React.useState(null);
   const [currentPlaybackPosition, setCurrentPlaybackPosition] = React.useState(0);
   const [soundDuration, setSoundDuration] = React.useState(0);
-  const [searchQuery, setSearchQuery] = React.useState(''); // State for search query
+  const [searchQuery, setSearchQuery] = React.useState('');
 
-  // Function to rename a recording
   const renameRecording = (index) => {
     Alert.prompt(
       'Rename Recording',
@@ -30,18 +29,37 @@ export default function RecorderScreen() {
           onPress: (newName) => {
             setRecordings((prevRecordings) => {
               const updatedRecordings = [...prevRecordings];
-              updatedRecordings[index].name = newName; // Update name of the recording
+              updatedRecordings[index].name = newName;
               return updatedRecordings;
             });
           },
         },
       ],
       'plain-text',
-      recordings[index].name || `Recording #${index + 1}`, // Default name
+      recordings[index].name || `Recording #${index + 1}`
     );
   };
 
-  // Function to filter recordings based on search query
+  const deleteRecording = (index) => {
+    Alert.alert(
+      'Delete Recording',
+      'Are you sure you want to delete this recording?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          onPress: () => {
+            setRecordings((prevRecordings) => {
+              const updatedRecordings = prevRecordings.filter((_, i) => i !== index);
+              return updatedRecordings;
+            });
+          },
+          style: 'destructive',
+        },
+      ]
+    );
+  };
+
   const filteredRecordings = recordings.filter((recording) =>
     recording.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -75,12 +93,12 @@ export default function RecorderScreen() {
 
     await recording.stopAndUnloadAsync();
     const { sound, status } = await recording.createNewLoadedSoundAsync();
-    setSoundDuration(status.durationMillis); // Save the total duration of the sound
+    setSoundDuration(status.durationMillis);
 
     setRecordings((prev) => [
       ...prev,
       {
-        name: `Recording #${prev.length + 1}`, // Default name
+        name: `Recording #${prev.length + 1}`,
         sound: sound,
         duration: getDurationFormatted(status.durationMillis),
         file: recording.getURI(),
@@ -123,10 +141,8 @@ export default function RecorderScreen() {
     await sound.replayAsync();
   }
 
-  // Function to handle slider change
   const onSliderValueChange = async (value) => {
     if (playingSound) {
-      // Seek the playback to the new position
       await playingSound.setPositionAsync(value);
       setCurrentPlaybackPosition(value);
     }
@@ -144,10 +160,8 @@ export default function RecorderScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <Text style={styles.header}>🎙️ Voice Recorder</Text>
 
-      {/* Search Bar */}
       <TextInput
         style={styles.searchBar}
         placeholder="Search recordings..."
@@ -155,7 +169,6 @@ export default function RecorderScreen() {
         onChangeText={setSearchQuery}
       />
 
-      {/* Recording Timer */}
       {recording && (
         <View style={styles.timerContainer}>
           <Text style={styles.durationText}>
@@ -164,14 +177,12 @@ export default function RecorderScreen() {
         </View>
       )}
 
-      {/* Playback Timer */}
       {playingSound && (
         <View>
           <Text style={styles.durationText}>
-            Playing: {getDurationFormatted(currentPlaybackPosition)} / {getDurationFormatted(soundDuration)}
+            Playing: {getDurationFormatted(currentPlaybackPosition)} /{' '}
+            {getDurationFormatted(soundDuration)}
           </Text>
-
-          {/* Playback Slider */}
           <Slider
             style={styles.slider}
             minimumValue={0}
@@ -185,7 +196,6 @@ export default function RecorderScreen() {
         </View>
       )}
 
-      {/* Recording Controls */}
       <View style={styles.controlsContainer}>
         {recording ? (
           <>
@@ -212,26 +222,33 @@ export default function RecorderScreen() {
         )}
       </View>
 
-      {/* Recordings List */}
       <FlatList
-        data={filteredRecordings} // Use filtered recordings based on search query
+        data={filteredRecordings}
         renderItem={({ item, index }) => (
           <View style={styles.recordingCard}>
             <Text style={styles.recordingText}>
               {item.name} | {item.duration}
             </Text>
-            <TouchableOpacity
-              style={styles.playButton}
-              onPress={() => playRecording(item.sound)}
-            >
-              <Icon name="play-circle-filled" size={40} color="#00BFA5" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.renameButton}
-              onPress={() => renameRecording(index)} // Rename recording
-            >
-              <Icon name="edit" size={30} color="#FF9800" />
-            </TouchableOpacity>
+            <View style={styles.iconsContainer}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => playRecording(item.sound)}
+              >
+                <Icon name="play-circle-filled" size={30} color="#00BFA5" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => renameRecording(index)}
+              >
+                <Icon name="edit" size={25} color="#FF9800" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => deleteRecording(index)}
+              >
+                <Icon name="delete" size={25} color="#D32F2F" />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
         keyExtractor={(item, index) => index.toString()}
@@ -243,7 +260,6 @@ export default function RecorderScreen() {
         style={styles.recordingsList}
       />
 
-      {/* Clear Button */}
       {recordings.length > 0 && (
         <TouchableOpacity style={styles.clearButton} onPress={clearRecordings}>
           <Text style={styles.clearButtonText}>Clear All Recordings</Text>
