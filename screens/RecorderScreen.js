@@ -7,6 +7,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons'; // Importing Materia
 export default function RecorderScreen() {
   const [recording, setRecording] = React.useState();
   const [recordings, setRecordings] = React.useState([]);
+  const [currentDuration, setCurrentDuration] = React.useState(0); // To store the current duration of the recording
 
   // Start recording
   async function startRecording() {
@@ -21,6 +22,13 @@ export default function RecorderScreen() {
           Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY
         );
         setRecording(recording);
+
+        // Update current duration every second
+        recording.setOnRecordingStatusUpdate((status) => {
+          if (status.isRecording) {
+            setCurrentDuration(status.durationMillis);
+          }
+        });
       }
     } catch (err) {
       console.error('Error starting recording', err);
@@ -41,6 +49,7 @@ export default function RecorderScreen() {
     });
 
     setRecordings(allRecordings);
+    setCurrentDuration(0); // Reset the duration after stopping
   }
 
   // Pause recording
@@ -61,6 +70,7 @@ export default function RecorderScreen() {
   async function discardRecording() {
     setRecording(undefined);
     await recording.stopAndUnloadAsync();
+    setCurrentDuration(0); // Reset the duration if discarded
   }
 
   // Format duration
@@ -147,6 +157,13 @@ export default function RecorderScreen() {
     <View style={styles.container}>
       {/* Header */}
       <Text style={styles.header}>Voice Recorder</Text>
+
+      {/* Recording Duration */}
+      {recording && (
+        <Text style={styles.durationText}>
+          {getDurationFormatted(currentDuration)}
+        </Text>
+      )}
 
       {/* Recording Controls */}
       <View style={styles.controlsContainer}>
