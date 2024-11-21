@@ -25,16 +25,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 5,
   },
-  stopButton: {
-    backgroundColor: '#FF5252',
-    paddingVertical: 15,
-    paddingHorizontal: 50,
-    borderRadius: 25,
+  controlsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 5,
+  },
+  controlButton: {
+    backgroundColor: '#FF5252',
+    padding: 15,
+    borderRadius: 50,
+    marginHorizontal: 10,
   },
   buttonText: {
     color: '#FFF',

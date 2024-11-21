@@ -1,7 +1,8 @@
 import React from 'react';
 import { Text, View, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { Audio } from 'expo-av';
-import styles from '../styles'; // Your existing styles
+import styles from '../styles'; // Import styles from the styles.js file
+import Icon from 'react-native-vector-icons/MaterialIcons'; // Importing MaterialIcons
 
 export default function RecorderScreen() {
   const [recording, setRecording] = React.useState();
@@ -42,6 +43,26 @@ export default function RecorderScreen() {
     setRecordings(allRecordings);
   }
 
+  // Pause recording
+  async function pauseRecording() {
+    if (recording) {
+      await recording.pauseAsync();
+    }
+  }
+
+  // Resume recording
+  async function resumeRecording() {
+    if (recording) {
+      await recording.startAsync();
+    }
+  }
+
+  // Discard recording
+  async function discardRecording() {
+    setRecording(undefined);
+    await recording.stopAndUnloadAsync();
+  }
+
   // Format duration
   function getDurationFormatted(milliseconds) {
     const minutes = Math.floor(milliseconds / 1000 / 60);
@@ -65,7 +86,6 @@ export default function RecorderScreen() {
             <Text style={styles.buttonText}>Play</Text>
           </TouchableOpacity>
 
-          {/* Edit Button */}
           <TouchableOpacity
             style={styles.editButton}
             onPress={() => editRecording(index)}
@@ -73,7 +93,6 @@ export default function RecorderScreen() {
             <Text style={styles.buttonText}>Edit</Text>
           </TouchableOpacity>
 
-          {/* Delete Button */}
           <TouchableOpacity
             style={styles.deleteButton}
             onPress={() => deleteRecording(index)}
@@ -129,15 +148,38 @@ export default function RecorderScreen() {
       {/* Header */}
       <Text style={styles.header}>Voice Recorder</Text>
 
-      {/* Recording Button */}
-      <TouchableOpacity
-        style={recording ? styles.stopButton : styles.recordButton}
-        onPress={recording ? stopRecording : startRecording}
-      >
-        <Text style={styles.buttonText}>
-          {recording ? 'Stop Recording' : 'Start Recording'}
-        </Text>
-      </TouchableOpacity>
+      {/* Recording Controls */}
+      <View style={styles.controlsContainer}>
+        {recording ? (
+          <>
+            <TouchableOpacity
+              style={styles.controlButton}
+              onPress={pauseRecording}
+            >
+              <Icon name="pause" size={30} color="#FFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.controlButton}
+              onPress={stopRecording}
+            >
+              <Icon name="stop" size={30} color="#FFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.controlButton}
+              onPress={discardRecording}
+            >
+              <Icon name="delete" size={30} color="#FFF" />
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity
+            style={styles.recordButton}
+            onPress={startRecording}
+          >
+            <Text style={styles.buttonText}>Start Recording</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Recordings List */}
       <FlatList
@@ -185,4 +227,3 @@ export default function RecorderScreen() {
     </View>
   );
 }
- 
