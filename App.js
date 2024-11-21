@@ -1,183 +1,38 @@
 import React from 'react';
-import { Text, View, Button, TouchableOpacity, FlatList, Alert } from 'react-native';
-import { Audio } from 'expo-av';
-import styles from './styles';
+import { Text, View } from 'react-native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { NavigationContainer } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+
+import RecorderScreen from './screens/RecorderScreen'; // Move your existing code to this screen
+import ProfileScreen from './screens/ProfileScreen'; // Placeholder for the second tab
+
+const Tab = createBottomTabNavigator();
 
 export default function App() {
-  const [recording, setRecording] = React.useState();
-  const [recordings, setRecordings] = React.useState([]);
-
-  // Start recording
-  async function startRecording() {
-    try {
-      const perm = await Audio.requestPermissionsAsync();
-      if (perm.status === "granted") {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: true,
-          playsInSilentModeIOS: true,
-        });
-        const { recording } = await Audio.Recording.createAsync(
-          Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY
-        );
-        setRecording(recording);
-      }
-    } catch (err) {}
-  }
-
-  // Stop recording
-  async function stopRecording() {
-    setRecording(undefined);
-
-    await recording.stopAndUnloadAsync();
-    let allRecordings = [...recordings];
-    const { sound, status } = await recording.createNewLoadedSoundAsync();
-    allRecordings.push({
-      sound: sound,
-      duration: getDurationFormatted(status.durationMillis),
-      file: recording.getURI(),
-    });
-
-    setRecordings(allRecordings);
-  }
-
-  // Format duration
-  function getDurationFormatted(milliseconds) {
-    const minutes = Math.floor(milliseconds / 1000 / 60);
-    const seconds = Math.round((milliseconds / 1000) % 60);
-    return `${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`;
-  }
-
-  // Get recording list with options
-  function getRecordingLines() {
-    return recordings.map((recordingLine, index) => {
-      return (
-        <View key={index} style={styles.recordingRow}>
-          <Text style={styles.recordingText}>
-            Recording #{index + 1} | {recordingLine.duration}
-          </Text>
-          
-          <TouchableOpacity
-            style={styles.playButton}
-            onPress={() => recordingLine.sound.replayAsync()}
-          >
-            <Text style={styles.buttonText}>Play</Text>
-          </TouchableOpacity>
-
-          {/* Edit Button */}
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => editRecording(index)}
-          >
-            <Text style={styles.buttonText}>Edit</Text>
-          </TouchableOpacity>
-
-          {/* Delete Button */}
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => deleteRecording(index)}
-          >
-            <Text style={styles.buttonText}>Delete</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    });
-  }
-
-  // Delete a recording
-  function deleteRecording(index) {
-    Alert.alert(
-      'Delete Recording',
-      'Are you sure you want to delete this recording?',
-      [
-        { text: 'Cancel' },
-        { text: 'Delete', onPress: () => {
-            let updatedRecordings = [...recordings];
-            updatedRecordings.splice(index, 1);
-            setRecordings(updatedRecordings);
-          }
-        },
-      ]
-    );
-  }
-
-  // Edit a recording (replace)
-  function editRecording(index) {
-    const newRecordingUri = 'new_recording_file_path';  // Placeholder for edited file
-    const newDuration = '00:00';  // Placeholder for new duration
-    
-    let updatedRecordings = [...recordings];
-    updatedRecordings[index] = {
-      ...updatedRecordings[index],
-      file: newRecordingUri,  // Replace the file path
-      duration: newDuration,   // Replace the duration
-    };
-    
-    setRecordings(updatedRecordings);
-  }
-
-  // Clear all recordings
-  function clearRecordings() {
-    setRecordings([]);
-  }
-
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <Text style={styles.header}>Voice Recorder</Text>
-
-      {/* Recording Button */}
-      <TouchableOpacity
-        style={recording ? styles.stopButton : styles.recordButton}
-        onPress={recording ? stopRecording : startRecording}
+    <NavigationContainer>
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          tabBarIcon: ({ focused, color, size }) => {
+            let iconName;
+            if (route.name === 'Recorder') {
+              iconName = focused ? 'mic' : 'mic-outline';
+            } else if (route.name === 'Profile') {
+              iconName = focused ? 'person' : 'person-outline';
+            }
+            return <Ionicons name={iconName} size={size} color={color} />;
+          },
+          tabBarActiveTintColor: '#1E88E5',
+          tabBarInactiveTintColor: 'gray',
+          headerStyle: { backgroundColor: '#1E88E5' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        })}
       >
-        <Text style={styles.buttonText}>
-          {recording ? "Stop Recording" : "Start Recording"}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Recordings List */}
-      <FlatList
-        data={recordings}
-        renderItem={({ item, index }) => (
-          <View style={styles.recordingRow}>
-            <Text style={styles.recordingText}>
-              Recording #{index + 1} | {item.duration}
-            </Text>
-            <TouchableOpacity
-              style={styles.playButton}
-              onPress={() => item.sound.replayAsync()}
-            >
-              <Text style={styles.buttonText}>Play</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => editRecording(index)}
-            >
-              <Text style={styles.buttonText}>Edit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => deleteRecording(index)}
-            >
-              <Text style={styles.buttonText}>Delete</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        keyExtractor={(item, index) => index.toString()}
-        ListEmptyComponent={
-          <Text style={styles.noRecordingsText}>
-            No recordings yet. Start recording now!
-          </Text>
-        }
-        style={styles.recordingsList}
-      />
-
-      {/* Clear Button */}
-      {recordings.length > 0 && (
-        <TouchableOpacity style={styles.clearButton} onPress={clearRecordings}>
-          <Text style={styles.buttonText}>Clear Recordings</Text>
-        </TouchableOpacity>
-      )}
-    </View>
+        <Tab.Screen name="Recorder" component={RecorderScreen} />
+        <Tab.Screen name="Profile" component={ProfileScreen} />
+      </Tab.Navigator>
+    </NavigationContainer>
   );
 }
