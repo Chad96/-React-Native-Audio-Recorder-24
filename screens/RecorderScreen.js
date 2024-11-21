@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View, TouchableOpacity, FlatList, Alert } from 'react-native';
+import { Text, View, TouchableOpacity, FlatList, Alert, TextInput } from 'react-native';
 import { Audio } from 'expo-av';
 import styles from '../styles'; // Import your external styles file
 import Icon from 'react-native-vector-icons/MaterialIcons'; // MaterialIcons for a consistent feel
@@ -13,6 +13,38 @@ export default function RecorderScreen() {
   const [playingSound, setPlayingSound] = React.useState(null);
   const [currentPlaybackPosition, setCurrentPlaybackPosition] = React.useState(0);
   const [soundDuration, setSoundDuration] = React.useState(0);
+  const [searchQuery, setSearchQuery] = React.useState(''); // State for search query
+
+  // Function to rename a recording
+  const renameRecording = (index) => {
+    Alert.prompt(
+      'Rename Recording',
+      'Enter a new name for this recording:',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Rename',
+          onPress: (newName) => {
+            setRecordings((prevRecordings) => {
+              const updatedRecordings = [...prevRecordings];
+              updatedRecordings[index].name = newName; // Update name of the recording
+              return updatedRecordings;
+            });
+          },
+        },
+      ],
+      'plain-text',
+      recordings[index].name || `Recording #${index + 1}`, // Default name
+    );
+  };
+
+  // Function to filter recordings based on search query
+  const filteredRecordings = recordings.filter((recording) =>
+    recording.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   async function startRecording() {
     try {
@@ -48,6 +80,7 @@ export default function RecorderScreen() {
     setRecordings((prev) => [
       ...prev,
       {
+        name: `Recording #${prev.length + 1}`, // Default name
         sound: sound,
         duration: getDurationFormatted(status.durationMillis),
         file: recording.getURI(),
@@ -114,6 +147,14 @@ export default function RecorderScreen() {
       {/* Header */}
       <Text style={styles.header}>🎙️ Voice Recorder</Text>
 
+      {/* Search Bar */}
+      <TextInput
+        style={styles.searchBar}
+        placeholder="Search recordings..."
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+      />
+
       {/* Recording Timer */}
       {recording && (
         <View style={styles.timerContainer}>
@@ -173,17 +214,23 @@ export default function RecorderScreen() {
 
       {/* Recordings List */}
       <FlatList
-        data={recordings}
+        data={filteredRecordings} // Use filtered recordings based on search query
         renderItem={({ item, index }) => (
           <View style={styles.recordingCard}>
             <Text style={styles.recordingText}>
-              Recording #{index + 1} | {item.duration}
+              {item.name} | {item.duration}
             </Text>
             <TouchableOpacity
               style={styles.playButton}
               onPress={() => playRecording(item.sound)}
             >
               <Icon name="play-circle-filled" size={40} color="#00BFA5" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.renameButton}
+              onPress={() => renameRecording(index)} // Rename recording
+            >
+              <Icon name="edit" size={30} color="#FF9800" />
             </TouchableOpacity>
           </View>
         )}
