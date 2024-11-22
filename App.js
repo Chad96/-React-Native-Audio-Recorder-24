@@ -1,13 +1,39 @@
 import React from 'react';
-import { Text, View } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { NavigationContainer } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
+import { NavigationContainer } from '@react-navigation/native';
 
-import RecorderScreen from './screens/RecorderScreen'; // Move your existing code to this screen
-import ProfileScreen from './screens/ProfileScreen'; // Placeholder for the second tab
+import RecorderScreen from './screens/RecorderScreen'; // Your existing Recorder tab
+import RegisterScreen from './screens/RegisterScreen'; // Registration screen
+import LoginScreen from './screens/LoginScreen'; // Login screen
+import ProfileScreen from './screens/ProfileScreen'; // Profile screen
+import RecordingsListScreen from './screens/RecordingsListScreen'; // Recordings list
 
 const Tab = createBottomTabNavigator();
+const ProfileStack = createStackNavigator();
+
+function ProfileStackNavigator() {
+  return (
+    <ProfileStack.Navigator initialRouteName="Register">
+      <ProfileStack.Screen
+        name="Register"
+        component={RegisterScreen}
+        options={{ title: 'Register' }}
+      />
+      <ProfileStack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={{ title: 'Login' }}
+      />
+      <ProfileStack.Screen
+        name="RecordingsList"
+        component={RecordingsListScreen}
+        options={{ title: 'Recordings List' }}
+      />
+    </ProfileStack.Navigator>
+  );
+}
 
 export default function App() {
   return (
@@ -31,7 +57,11 @@ export default function App() {
         })}
       >
         <Tab.Screen name="Recorder" component={RecorderScreen} />
-        <Tab.Screen name="Profile" component={ProfileScreen} />
+        <Tab.Screen
+          name="Profile"
+          component={ProfileStackNavigator}
+          options={{ headerShown: false }}
+        />
       </Tab.Navigator>
     </NavigationContainer>
   );
